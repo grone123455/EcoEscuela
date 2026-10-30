@@ -1,3 +1,5 @@
+
+
 <script setup>
 import { computed, inject } from 'vue'
 
@@ -7,17 +9,28 @@ const registros = inject('registros')
 // Materiales que utiliza el formulario.
 const materiales = ['Papel', 'Cartón', 'Plástico']
 
-// Calculamos cuánto se recolectó de cada material.
+// Calculamos las cantidades de cada material.
 const resultados = computed(() =>
   materiales.map(material => {
-    const recolectado = registros.value
-      .filter(registro => registro.material === material)
-      .reduce((total, registro) => total + Number(registro.cantidad), 0)
+    const registrosMaterial = registros.value.filter(
+      registro => registro.material === material
+    )
+
+    const recolectado = registrosMaterial.reduce(
+      (total, registro) => total + Number(registro.cantidad || 0),
+      0
+    )
+
+    const correctamenteSeparado = registrosMaterial.reduce(
+      (total, registro) =>
+        total + Number(registro.cantidadCorrectamenteSeparada ?? 0),
+      0
+    )
 
     return {
       material,
       recolectado,
-      reutilizado: 0
+      correctamenteSeparado
     }
   })
 )
@@ -27,25 +40,57 @@ const totalRecolectado = computed(() =>
   resultados.value.reduce((total, item) => total + item.recolectado, 0)
 )
 
-const totalReutilizado = computed(() =>
-  resultados.value.reduce((total, item) => total + item.reutilizado, 0)
+const totalCorrectamenteSeparado = computed(() =>
+  resultados.value.reduce(
+    (total, item) => total + item.correctamenteSeparado,
+    0
+  )
 )
 
-// Porcentaje reutilizado.
-const porcentajeReutilizado = computed(() => {
-  if (totalRecolectado.value === 0) return 0
+// Indicador de correcta separación de residuos.
+const porcentajeCorrectamenteSeparado = computed(() => {
+  if (totalRecolectado.value === 0) return null
 
   return Math.round(
-    (totalReutilizado.value / totalRecolectado.value) * 100
+    (totalCorrectamenteSeparado.value / totalRecolectado.value) * 100
   )
 })
 
+// Meta de correcta separación para el tercer mes.
+const metaSeparacion = 85
+
+const metaAlcanzada = computed(() =>
+  porcentajeCorrectamenteSeparado.value !== null &&
+  porcentajeCorrectamenteSeparado.value >= metaSeparacion
+)
+
+// Indicador de disponibilidad de materiales.
+// Valores ficticios para realizar pruebas.
+const materialesDisponibles = 9
+const materialesNecesarios = 10
+const metaDisponibilidad = 90
+
+const porcentajeDisponibilidad = computed(() => {
+  if (materialesNecesarios === 0) return null
+
+  return Math.round(
+    (materialesDisponibles / materialesNecesarios) * 100
+  )
+})
+
+const disponibilidadAlcanzada = computed(() =>
+  porcentajeDisponibilidad.value !== null &&
+  porcentajeDisponibilidad.value >= metaDisponibilidad
+)
+
+// Formato de kilogramos.
 function formatoKg(cantidad) {
-  return cantidad.toLocaleString('es-AR', {
+  return Number(cantidad || 0).toLocaleString('es-AR', {
     maximumFractionDigits: 2
   })
 }
 </script>
+
 
 <template>
   <section class="results-page">
@@ -57,49 +102,95 @@ function formatoKg(cantidad) {
     <div class="section-heading">
       <div>
         <h1>Resultados del proyecto</h1>
-        <p>Consultá las cantidades recolectadas y reutilizadas.</p>
+        <p>Consultá las cantidades recolectadas y correctamente separadas.</p>
       </div>
     </div>
 
     <div class="data-notice">
       <span class="info-icon">ⓘ</span>
       <span>
-        Estos valores son ficticios y se utilizan únicamente para
-        realizar pruebas. No representan resultados reales.
+        Los resultados se calculan automáticamente a partir de los registros
+        cargados. Los datos de prueba no representan resultados reales.
       </span>
     </div>
 
     <div class="results-grid">
-      <article class="feature-card result-card">
-        <div class="feature-icon">♻</div>
-        <p class="result-label">Total recolectado</p>
-        <p class="result-number">
-          {{ formatoKg(totalRecolectado) }} <span>kg</span>
-        </p>
-        <p class="result-description">
-          Materiales recuperados por la cooperativa.
-        </p>
-      </article>
+<article class="feature-card result-card">
+  <div class="feature-icon">%</div>
+
+  <p class="result-label">Correcta separación</p>
+
+  <p class="result-number">
+    {{ porcentajeCorrectamenteSeparado === null
+      ? '—'
+      : porcentajeCorrectamenteSeparado
+    }}<span v-if="porcentajeCorrectamenteSeparado !== null">%</span>
+  </p>
+
+  <p class="result-description">
+    Porcentaje sobre el total de residuos recolectados.
+  </p>
+
+  <div class="goal-section">
+    <div class="goal-info">
+      <span>Meta del tercer mes</span>
+      <strong>{{ metaSeparacion }}%</strong>
+    </div>
+
+    <div class="goal-progress">
+      <div
+        class="goal-progress-fill"
+        :style="{
+          width: `${Math.min(porcentajeCorrectamenteSeparado ?? 0, 100)}%`
+        }"
+      ></div>
+    </div>
+
+    <span
+      v-if="porcentajeCorrectamenteSeparado === null"
+      class="goal-status unavailable"
+    >
+      No calculable: no hay datos suficientes
+    </span>
+
+    <span
+      v-else-if="metaAlcanzada"
+      class="goal-status achieved"
+    >
+      ✓ Meta alcanzada
+    </span>
+
+    <span
+      v-else
+      class="goal-status pending"
+    >
+      Meta no alcanzada
+    </span>
+  </div>
+</article>
 
       <article class="feature-card result-card">
         <div class="feature-icon">✓</div>
-        <p class="result-label">Total reutilizado</p>
+        <p class="result-label">Correctamente separados</p>
         <p class="result-number">
-          {{ formatoKg(totalReutilizado) }} <span>kg</span>
+          {{ formatoKg(totalCorrectamenteSeparado) }} <span>kg</span>
         </p>
         <p class="result-description">
-          Materiales destinados a un nuevo uso.
+          Cantidad de residuos separados correctamente.
         </p>
       </article>
 
       <article class="feature-card result-card">
         <div class="feature-icon">%</div>
-        <p class="result-label">Porcentaje reutilizado</p>
+        <p class="result-label">Correcta separación</p>
         <p class="result-number">
-          {{ porcentajeReutilizado }}<span>%</span>
+          {{ porcentajeCorrectamenteSeparado === null
+            ? '—'
+            : porcentajeCorrectamenteSeparado
+          }}<span v-if="porcentajeCorrectamenteSeparado !== null">%</span>
         </p>
         <p class="result-description">
-          Proporción reutilizada del total recolectado.
+          Porcentaje sobre el total de residuos recolectados.
         </p>
       </article>
     </div>
@@ -124,8 +215,8 @@ function formatoKg(cantidad) {
             <tr>
               <th>Material</th>
               <th>Recolectado</th>
-              <th>Reutilizado</th>
-              <th>Pendiente de reutilizar</th>
+              <th>Correctamente separado</th>
+              <th>Pendiente de separación</th>
             </tr>
           </thead>
 
@@ -133,8 +224,10 @@ function formatoKg(cantidad) {
             <tr v-for="item in resultados" :key="item.material">
               <td>{{ item.material }}</td>
               <td>{{ formatoKg(item.recolectado) }} kg</td>
-              <td>{{ formatoKg(item.reutilizado) }} kg</td>
-              <td>{{ formatoKg(item.recolectado - item.reutilizado) }} kg</td>
+              <td>{{ formatoKg(item.correctamenteSeparado) }} kg</td>
+              <td>
+                {{ formatoKg(item.recolectado - item.correctamenteSeparado) }} kg
+              </td>
             </tr>
           </tbody>
 
@@ -142,15 +235,18 @@ function formatoKg(cantidad) {
             <tr>
               <th>Total</th>
               <th>{{ formatoKg(totalRecolectado) }} kg</th>
-              <th>{{ formatoKg(totalReutilizado) }} kg</th>
+              <th>{{ formatoKg(totalCorrectamenteSeparado) }} kg</th>
               <th>
-                {{ formatoKg(totalRecolectado - totalReutilizado) }} kg
+                {{ formatoKg(totalRecolectado - totalCorrectamenteSeparado) }} kg
               </th>
             </tr>
           </tfoot>
         </table>
       </div>
-      <p class="table-hint">Deslizá la tabla horizontalmente para consultar todas las columnas.</p>
+
+      <p class="table-hint">
+        Deslizá la tabla horizontalmente para consultar todas las columnas.
+      </p>
     </div>
   </section>
 </template>
@@ -375,4 +471,62 @@ function formatoKg(cantidad) {
     font-size: 11px;
   }
 }
+
+.goal-section {
+  margin-top: 18px;
+}
+
+.goal-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.goal-info strong {
+  color: var(--green-dark);
+  font-size: 12px;
+}
+
+.goal-progress {
+  width: 100%;
+  height: 9px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #e8eee9;
+}
+
+.goal-progress-fill {
+  height: 100%;
+  border-radius: 20px;
+  background: #d69a35;
+  transition: width 0.3s ease;
+}
+
+.goal-status {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.goal-status.achieved {
+  background: #e6f3e9;
+  color: #287443;
+}
+
+.goal-status.pending {
+  background: #fff0df;
+  color: #a35e18;
+}
+
+.goal-status.unavailable {
+  background: #edf0f1;
+  color: #647078;
+}
+
 </style>

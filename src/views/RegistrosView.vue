@@ -1,10 +1,10 @@
-
 <script setup>
 import { computed, inject, reactive, ref } from 'vue'
 
 const formularioInicial = () => ({
   material: '',
   cantidad: '',
+  cantidadCorrectamenteSeparada: '',
   fecha: '',
   observaciones: ''
 })
@@ -64,6 +64,23 @@ function validarFormulario() {
     return false
   }
 
+  const cantidadCorrectamenteSeparada = Number(
+    formulario.cantidadCorrectamenteSeparada
+  )
+
+  if (
+    formulario.cantidadCorrectamenteSeparada === '' ||
+    !Number.isFinite(cantidadCorrectamenteSeparada) ||
+    cantidadCorrectamenteSeparada < 0 ||
+    cantidadCorrectamenteSeparada > cantidad
+  ) {
+    mostrarMensaje(
+      'La cantidad correctamente separada debe ser igual o mayor que cero y no puede superar la cantidad recolectada.',
+      'error'
+    )
+    return false
+  }
+
   if (!formulario.fecha) {
     mostrarMensaje('Seleccioná la fecha de recolección.', 'error')
     return false
@@ -94,6 +111,9 @@ function registrarResiduo() {
   const datos = {
     material: formulario.material,
     cantidad: Number(formulario.cantidad),
+    cantidadCorrectamenteSeparada: Number(
+      formulario.cantidadCorrectamenteSeparada
+    ),
     fecha: formulario.fecha,
     observaciones: formulario.observaciones.trim()
   }
@@ -135,6 +155,9 @@ function editarRegistro(registro) {
 
   formulario.material = registro.material
   formulario.cantidad = String(registro.cantidad)
+  formulario.cantidadCorrectamenteSeparada = String(
+    registro.cantidadCorrectamenteSeparada ?? 0
+  )
   formulario.fecha = registro.fecha
   formulario.observaciones = registro.observaciones
 
@@ -178,6 +201,7 @@ function cargarDatosPrueba() {
       id: 1,
       material: 'Papel',
       cantidad: 5.5,
+      cantidadCorrectamenteSeparada: 4.4,
       fecha: '2026-10-20',
       observaciones: 'Hojas usadas de actividades escolares.',
       esPrueba: true
@@ -186,6 +210,7 @@ function cargarDatosPrueba() {
       id: 2,
       material: 'Cartón',
       cantidad: 8,
+      cantidadCorrectamenteSeparada: 6.4,
       fecha: '2026-10-22',
       observaciones: 'Cajas limpias para reutilizar.',
       esPrueba: true
@@ -194,6 +219,7 @@ function cargarDatosPrueba() {
       id: 3,
       material: 'Plástico',
       cantidad: 3.2,
+      cantidadCorrectamenteSeparada: 2.56,
       fecha: '2026-10-24',
       observaciones: 'Envases limpios.',
       esPrueba: true
@@ -260,7 +286,7 @@ const totalKg = computed(() =>
         </div>
 
         <div class="form-field">
-          <label for="cantidad">Cantidad (kg) *</label>
+          <label for="cantidad">Cantidad recolectada (kg) *</label>
           <input
             id="cantidad"
             v-model="formulario.cantidad"
@@ -268,6 +294,22 @@ const totalKg = computed(() =>
             min="0.01"
             step="0.01"
             placeholder="Ej.: 2.5"
+            required
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="cantidadCorrectamenteSeparada">
+            Cantidad correctamente separada (kg) *
+          </label>
+          <input
+            id="cantidadCorrectamenteSeparada"
+            v-model="formulario.cantidadCorrectamenteSeparada"
+            type="number"
+            min="0"
+            :max="formulario.cantidad"
+            step="0.01"
+            placeholder="Ej.: 2"
             required
           />
         </div>
@@ -377,7 +419,8 @@ const totalKg = computed(() =>
           <thead>
             <tr>
               <th>Material</th>
-              <th>Cantidad</th>
+              <th>Cantidad recolectada</th>
+              <th>Cantidad correctamente separada</th>
               <th>Fecha</th>
               <th>Observaciones</th>
               <th>Tipo</th>
@@ -389,6 +432,12 @@ const totalKg = computed(() =>
             <tr v-for="registro in registrosFiltrados" :key="registro.id">
               <td>{{ registro.material }}</td>
               <td>{{ registro.cantidad.toLocaleString('es-AR') }} kg</td>
+              <td>
+                {{
+                  (registro.cantidadCorrectamenteSeparada ?? 0).toLocaleString('es-AR')
+                }}
+                kg
+              </td>
               <td>{{ registro.fecha }}</td>
               <td>{{ registro.observaciones || '—' }}</td>
               <td>
